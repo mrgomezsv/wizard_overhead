@@ -12,14 +12,14 @@
     'author': "Grupo Treming",
     'website': "https://www.treming.com",
 
-    'category': 'Uncategorized',
+    'category': 'Account',
     'version': '0.1',
 
-    'depends': ['base'],
+    'depends': ['base', 'account'],
 
     'data': [
-        # 'security/ir.model.access.csv',
-        'views/views.xml',
-        'views/templates.xml',
+        'security/ir.model.access.csv',
+        'wizard/trprov_overhead_tr.xml'
+
     ],
 }
