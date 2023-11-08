@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 {
-    'name': "treming_profil_overhead",
+    'name': "treming_profil_wizard_overhead",
 
     'summary': """
         Estados de resultados por vendedor, con su Overhead incorporado""",
@@ -20,6 +20,5 @@
     'data': [
         'security/ir.model.access.csv',
         'wizard/trprov_overhead_tr.xml'
-
     ],
 }
