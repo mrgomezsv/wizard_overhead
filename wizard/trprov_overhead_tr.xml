@@ -8,8 +8,8 @@
                     <group>
                         <group>
                             <field name="report_from_date"/> <!-- Cambiado de "start_date" -->
-                            <field name="res_partner_ids" widget="many2many_tags" options="{'no_create': True}"/>
-                            <field name="month_range"/> <!-- Agregado el campo "month_range" -->
+                            <field name="res_seller_ids" string="Cuentas Analiticas" widget="many2many_tags" options="{'no_create': True}"/>
+                            <!-- <field name="month_range"/>  Agregado el campo "month_range" -->
                             <field name="file_content" invisible="1"/>
                         </group>
                         <group>
@@ -18,8 +18,8 @@
                         </group>
                     </group>
                     <footer>
-                        <!--                        <button name="pur_cost_generate_report" string="Generar" type="object" class="oe_highlight"/>-->
-                        <!--                        <button string="Cancelar" class="btn-secondary" special="cancel"/>-->
+                        <button name="action_generate_excel" string="Generar" type="object" class="oe_highlight"/>
+                        <button string="Cancelar" class="btn-secondary" special="cancel"/>
                     </footer>
                 </form>
             </field>
