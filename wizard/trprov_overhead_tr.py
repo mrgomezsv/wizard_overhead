@@ -54,12 +54,11 @@ class TrprovOverheadTr(models.TransientModel):
             cuenta_analitica = row_data['cuenta_analitica']
 
             # Llena los valores en las columnas correspondientes
-            wk_sheet.cell(row=row_index, column=1, value=vendedor)
+            wk_sheet.cell(row=row_index, column=1, value=cuenta_analitica)  # Modifica la columna 1 con el nombre de la cuenta analítica
             wk_sheet.cell(row=row_index, column=2, value=ventas)
             wk_sheet.cell(row=row_index, column=3, value=costo_ventas)
             wk_sheet.cell(row=row_index, column=4, value=gastos_operativos)
             wk_sheet.cell(row=row_index, column=5, value=utilidad_neta)
-            wk_sheet.cell(row=row_index, column=6, value=cuenta_analitica)
 
         output = BytesIO()
         wk_book.save(output)
@@ -90,7 +89,7 @@ class TrprovOverheadTr(models.TransientModel):
 
         for analytic_account in self.res_seller_ids:
             data.append({
-                'vendedor': 'Vendedor 1',  # Agrega lógica para obtener el nombre del vendedor
+                'vendedor': analytic_account.name,  # Utiliza el nombre de la cuenta analítica como "Nombre Cto. Costo"
                 'ventas': 10000,  # Agrega lógica para obtener las ventas
                 'costo_ventas': 6000,  # Agrega lógica para obtener el costo de ventas
                 'gastos_operativos': 3000,  # Agrega lógica para obtener los gastos operativos
