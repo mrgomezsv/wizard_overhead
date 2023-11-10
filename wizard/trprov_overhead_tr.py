@@ -30,14 +30,14 @@ class TrprovOverheadTr(models.TransientModel):
         title_cell.font = openpyxl.styles.Font(bold=True, size=14)
 
         headers = [
-            "Nombre Cto. Costo", "Concepto", "Nombre Cta Agrupador", "Nombre Cuenta", "Enero", "Febrero", "Marzo",
+            "Nombre Cto. Costo", "Tipo", "Nombre Cta Agrupador", "Nombre Cuenta", "Enero", "Febrero", "Marzo",
             "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
             "Total Resultado"
         ]
 
         # Comienza a llenar los encabezados a partir de la tercera fila y tercera columna
         row_index = 3
-        col_index = 3
+        col_index = 1
         for header in headers:
             cell = wk_sheet.cell(row=row_index, column=col_index)
             cell.value = header
@@ -47,18 +47,20 @@ class TrprovOverheadTr(models.TransientModel):
 
         for row_index, row_data in enumerate(data, 4):  # Comienza a llenar los datos a partir de la cuarta fila
             vendedor = row_data['vendedor']
-            ventas = row_data['ventas']
-            costo_ventas = row_data['costo_ventas']
+            tipo_cuenta = row_data['tipo_cuenta']
+            nombre_cuenta = row_data['nombre_cuenta']
             gastos_operativos = row_data['gastos_operativos']
             utilidad_neta = row_data['utilidad_neta']
             cuenta_analitica = row_data['cuenta_analitica']
 
             # Llena los valores en las columnas correspondientes
             wk_sheet.cell(row=row_index, column=1, value=cuenta_analitica)  # Modifica la columna 1 con el nombre de la cuenta analítica
-            wk_sheet.cell(row=row_index, column=2, value=ventas)
-            wk_sheet.cell(row=row_index, column=3, value=costo_ventas)
-            wk_sheet.cell(row=row_index, column=4, value=gastos_operativos)
-            wk_sheet.cell(row=row_index, column=5, value=utilidad_neta)
+            wk_sheet.cell(row=row_index, column=2, value=tipo_cuenta)
+            wk_sheet.cell(row=row_index, column=4, value=nombre_cuenta)
+            wk_sheet.cell(row=row_index, column=5, value=gastos_operativos)
+            wk_sheet.cell(row=row_index, column=6, value=utilidad_neta)
+            wk_sheet.cell(row=row_index, column=7, value=vendedor)
+
 
         output = BytesIO()
         wk_book.save(output)
@@ -87,14 +89,15 @@ class TrprovOverheadTr(models.TransientModel):
     def obtener_datos_estado_resultados(self):
         data = []
 
-        for analytic_account in self.res_seller_ids:
+        analytic_seller = self.env['account.move.line'].search([])
+        for analytic_account in analytic_seller:
             data.append({
-                'vendedor': analytic_account.name,  # Utiliza el nombre de la cuenta analítica como "Nombre Cto. Costo"
-                'ventas': 10000,  # Agrega lógica para obtener las ventas
-                'costo_ventas': 6000,  # Agrega lógica para obtener el costo de ventas
+                'vendedor': 20000, #analytic_account.analytic_distribution.get("name", ""),  # Utiliza el nombre de la cuenta analítica como "Nombre Cto. Costo"
+                'tipo_cuenta': analytic_account.account_type,  # Agrega lógica para obtener las ventas
+                'nombre_cuenta': analytic_account.account_id.name,  # Agrega lógica para obtener el costo de ventas
                 'gastos_operativos': 3000,  # Agrega lógica para obtener los gastos operativos
                 'utilidad_neta': 1000,  # Agrega lógica para obtener la utilidad neta
-                'cuenta_analitica': analytic_account.name,  # Agrega la cuenta analítica
+                'cuenta_analitica': 1222,  # Agrega la cuenta analítica
             })
 
         return data
