@@ -4,6 +4,8 @@ from odoo import api, fields, models
 import openpyxl
 from io import BytesIO
 import base64
+from odoo.exceptions import ValidationError
+
 
 class TrprovOverheadTr(models.TransientModel):
     _name = 'trprov.overhead.tr'
@@ -47,11 +49,12 @@ class TrprovOverheadTr(models.TransientModel):
 
         data = self.obtener_datos_estado_resultados()
 
-        for row_index, row_data in enumerate(data, 4):  # Comienza a llenar los datos a partir de la cuarta fila
+        for row_index, row_data in enumerate(data, 4):
+            nombre_cto_costo = row_data['nombre_cto_costo']
             tipo_cuenta = row_data['tipo_cuenta']
             nombre_cuenta = row_data['nombre_cuenta']
 
-            # Llena los valores en las columnas correspondientes
+            wk_sheet.cell(row=row_index, column=1, value=nombre_cto_costo)
             wk_sheet.cell(row=row_index, column=2, value=tipo_cuenta)
             wk_sheet.cell(row=row_index, column=3, value=nombre_cuenta)
 
@@ -73,32 +76,21 @@ class TrprovOverheadTr(models.TransientModel):
     def action_custom_button(self):
         return self.action_generate_excel()
 
-    # Inicialización de opciones de los botones en el informe de cuentas
-    def _init_options_buttons(self, options, previous_options=None):
-        super(AccountReport, self)._init_options_buttons(options, previous_options=previous_options)
-        reporte = self.env.ref(
-            'account_reports.profit_and_loss')
-        if self.id == reporte.id:
-            options['buttons'].append({'name': 'Overhead', 'action': 'action_generate_excel', 'sequence': 100})
-
-    # Función para obtener datos ficticios del estado de resultados
+    # Función para obtener datos del estado de resultados desde Apuntes contables
     def obtener_datos_estado_resultados(self):
-        data = []
+        for rec in self:
+            data = []
 
-        analytic_seller = self.env['account.move.line'].search([])
-        data_set = set()
+            #raise ValidationError(self.res_seller_ids.name)
+            analytic_sellers = rec.env['account.analytic.line'].search([('account_id', 'in', rec.res_seller_ids.ids)])
+            print(analytic_sellers)
 
-        for analytic_account in analytic_seller:
-            tipo_cuenta = analytic_account.account_type
-            nombre_cuenta = analytic_account.account_id.name
-
-            # Verifica si los datos ya están en el conjunto antes de agregarlos
-            if (tipo_cuenta, nombre_cuenta) not in data_set:
-                data_set.add((tipo_cuenta, nombre_cuenta))
+            for record in analytic_sellers:
 
                 data.append({
-                    'tipo_cuenta': tipo_cuenta,
-                    'nombre_cuenta': nombre_cuenta,
+                    'tipo_cuenta': "record.account_id.account_type",
+                    'nombre_cuenta': record.general_account_id.name,
+                    'nombre_cto_costo': record.account_id.name,
                 })
 
         return data
