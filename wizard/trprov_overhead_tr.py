@@ -9,6 +9,7 @@ class TrprovOverheadTr(models.TransientModel):
     _name = 'trprov.overhead.tr'
     _description = 'Reporte Overhead'
 
+    # Definición de campos para el modelo
     report_from_date = fields.Date(string="Reporte desde", required=True, default=fields.Date.context_today)
     report_to_date = fields.Date(string="Reporte hasta", required=True, default=fields.Date.context_today)
     categ_ids = fields.Many2many('product.category', string="Categoria de los productos")
@@ -17,6 +18,7 @@ class TrprovOverheadTr(models.TransientModel):
                                  default=lambda self: self.env.company.id)
     file_content = fields.Binary(string="Archivo Contenido")
 
+    # Acción para generar el archivo Excel y mostrar el enlace de descarga
     def action_generate_excel(self):
         wk_book = openpyxl.Workbook()
         wk_sheet = wk_book.active
@@ -30,7 +32,7 @@ class TrprovOverheadTr(models.TransientModel):
         title_cell.font = openpyxl.styles.Font(bold=True, size=14)
 
         headers = [
-            "Nombre Cto. Costo", "Tipo", "Nombre Cta Agrupador", "Nombre Cuenta", "Enero", "Febrero", "Marzo",
+            "Nombre Cto. Costo", "Tipo", "Nombre Cuenta", "Enero", "Febrero", "Marzo",
             "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
             "Total Resultado"
         ]
@@ -46,21 +48,12 @@ class TrprovOverheadTr(models.TransientModel):
         data = self.obtener_datos_estado_resultados()
 
         for row_index, row_data in enumerate(data, 4):  # Comienza a llenar los datos a partir de la cuarta fila
-            vendedor = row_data['vendedor']
             tipo_cuenta = row_data['tipo_cuenta']
             nombre_cuenta = row_data['nombre_cuenta']
-            gastos_operativos = row_data['gastos_operativos']
-            utilidad_neta = row_data['utilidad_neta']
-            cuenta_analitica = row_data['cuenta_analitica']
 
             # Llena los valores en las columnas correspondientes
-            wk_sheet.cell(row=row_index, column=1, value=cuenta_analitica)  # Modifica la columna 1 con el nombre de la cuenta analítica
             wk_sheet.cell(row=row_index, column=2, value=tipo_cuenta)
-            wk_sheet.cell(row=row_index, column=4, value=nombre_cuenta)
-            wk_sheet.cell(row=row_index, column=5, value=gastos_operativos)
-            wk_sheet.cell(row=row_index, column=6, value=utilidad_neta)
-            wk_sheet.cell(row=row_index, column=7, value=vendedor)
-
+            wk_sheet.cell(row=row_index, column=3, value=nombre_cuenta)
 
         output = BytesIO()
         wk_book.save(output)
@@ -76,9 +69,11 @@ class TrprovOverheadTr(models.TransientModel):
             'target': 'self',
         }
 
+    # Acción para ejecutar la acción de generación de Excel
     def action_custom_button(self):
         return self.action_generate_excel()
 
+    # Inicialización de opciones de los botones en el informe de cuentas
     def _init_options_buttons(self, options, previous_options=None):
         super(AccountReport, self)._init_options_buttons(options, previous_options=previous_options)
         reporte = self.env.ref(
@@ -86,18 +81,24 @@ class TrprovOverheadTr(models.TransientModel):
         if self.id == reporte.id:
             options['buttons'].append({'name': 'Overhead', 'action': 'action_generate_excel', 'sequence': 100})
 
+    # Función para obtener datos ficticios del estado de resultados
     def obtener_datos_estado_resultados(self):
         data = []
 
         analytic_seller = self.env['account.move.line'].search([])
+        data_set = set()
+
         for analytic_account in analytic_seller:
-            data.append({
-                'vendedor': 20000, #analytic_account.analytic_distribution.get("name", ""),  # Utiliza el nombre de la cuenta analítica como "Nombre Cto. Costo"
-                'tipo_cuenta': analytic_account.account_type,  # Agrega lógica para obtener las ventas
-                'nombre_cuenta': analytic_account.account_id.name,  # Agrega lógica para obtener el costo de ventas
-                'gastos_operativos': 3000,  # Agrega lógica para obtener los gastos operativos
-                'utilidad_neta': 1000,  # Agrega lógica para obtener la utilidad neta
-                'cuenta_analitica': 1222,  # Agrega la cuenta analítica
-            })
+            tipo_cuenta = analytic_account.account_type
+            nombre_cuenta = analytic_account.account_id.name
+
+            # Verifica si los datos ya están en el conjunto antes de agregarlos
+            if (tipo_cuenta, nombre_cuenta) not in data_set:
+                data_set.add((tipo_cuenta, nombre_cuenta))
+
+                data.append({
+                    'tipo_cuenta': tipo_cuenta,
+                    'nombre_cuenta': nombre_cuenta,
+                })
 
         return data

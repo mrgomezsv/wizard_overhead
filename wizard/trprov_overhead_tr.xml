@@ -35,7 +35,7 @@
         <!-- Definir el menú para acceder a la vista de árbol -->
         <menuitem name="Estados de resultados por vendedor" id="trprov_overhead_tr_menu_base"
                   parent="account.menu_finance_reports" sequence="600"/>
-        <menuitem name="Overhead por vendedor MARIO " id="trprov_overhead_tr_menu" parent="trprov_overhead_tr_menu_base"
+        <menuitem name="Overhead por vendedor" id="trprov_overhead_tr_menu" parent="trprov_overhead_tr_menu_base"
                   action="trprov_overhead_action" sequence="10"/>
     </data>
 </odoo>
