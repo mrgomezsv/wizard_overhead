@@ -2,10 +2,10 @@
 
 from odoo import api, fields, models
 import openpyxl
-from openpyxl.styles import Font
+from openpyxl.styles import Font, NamedStyle
 from io import BytesIO
 import base64
-from odoo.exceptions import ValidationError
+from collections import defaultdict
 
 
 class TrprovOverheadTr(models.TransientModel):
@@ -49,6 +49,9 @@ class TrprovOverheadTr(models.TransientModel):
             cell.font = Font(bold=True)
             col_index += 1
 
+        # Obtén el formato de moneda
+        currency_format = NamedStyle(name='currency', number_format='"$"#,##0.00')
+
         data = self.obtener_datos_estado_resultados()
 
         for row_index, row_data in enumerate(data, 4):
@@ -72,19 +75,20 @@ class TrprovOverheadTr(models.TransientModel):
             wk_sheet.cell(row=row_index, column=1, value=nombre_cto_costo)
             wk_sheet.cell(row=row_index, column=2, value=tipo_cuenta)
             wk_sheet.cell(row=row_index, column=3, value=nombre_cuenta)
-            wk_sheet.cell(row=row_index, column=4, value=enero)
-            wk_sheet.cell(row=row_index, column=5, value=febrero)
-            wk_sheet.cell(row=row_index, column=6, value=marzo)
-            wk_sheet.cell(row=row_index, column=7, value=abril)
-            wk_sheet.cell(row=row_index, column=8, value=mayo)
-            wk_sheet.cell(row=row_index, column=9, value=junio)
-            wk_sheet.cell(row=row_index, column=10, value=julio)
-            wk_sheet.cell(row=row_index, column=11, value=agosto)
-            wk_sheet.cell(row=row_index, column=12, value=septiembre)
-            wk_sheet.cell(row=row_index, column=13, value=octubre)
-            wk_sheet.cell(row=row_index, column=14, value=noviembre)
-            wk_sheet.cell(row=row_index, column=15, value=diciembre)
-            wk_sheet.cell(row=row_index, column=16, value=total_resultado).font = Font(bold=True)
+            wk_sheet.cell(row=row_index, column=4, value=enero).style = currency_format
+            wk_sheet.cell(row=row_index, column=5, value=febrero).style = currency_format
+            wk_sheet.cell(row=row_index, column=6, value=marzo).style = currency_format
+            wk_sheet.cell(row=row_index, column=7, value=abril).style = currency_format
+            wk_sheet.cell(row=row_index, column=8, value=mayo).style = currency_format
+            wk_sheet.cell(row=row_index, column=9, value=junio).style = currency_format
+            wk_sheet.cell(row=row_index, column=10, value=julio).style = currency_format
+            wk_sheet.cell(row=row_index, column=11, value=agosto).style = currency_format
+            wk_sheet.cell(row=row_index, column=12, value=septiembre).style = currency_format
+            wk_sheet.cell(row=row_index, column=13, value=octubre).style = currency_format
+            wk_sheet.cell(row=row_index, column=14, value=noviembre).style = currency_format
+            wk_sheet.cell(row=row_index, column=15, value=diciembre).style = currency_format
+            wk_sheet.cell(row=row_index, column=16, value=total_resultado).style = currency_format
+            wk_sheet.cell(row=row_index, column=16).font = Font(bold=True) # Aplica negrita a la columna "Total Resultado"
 
         output = BytesIO()
         wk_book.save(output)
@@ -107,57 +111,75 @@ class TrprovOverheadTr(models.TransientModel):
     # Función para obtener datos del estado de resultados desde Apuntes contables
     def obtener_datos_estado_resultados(self):
         for rec in self:
-            data = []
+            data = defaultdict(lambda: defaultdict(float))
 
             analytic_sellers = rec.env['account.analytic.line'].search([('account_id', 'in', rec.res_seller_ids.ids), ])
 
             for record in analytic_sellers:
-                # Initialize the month values as 0.00
-                enero = febrero = marzo = abril = mayo = junio = julio = agosto = septiembre = octubre = noviembre = diciembre = "0.00"
+                # Inicializar los valores del mes como 0.00
+                enero = febrero = marzo = abril = mayo = junio = julio = agosto = septiembre = octubre = noviembre = diciembre = 0.00
 
-                # Set the amount value for the corresponding month
+                # Fijar el valor del importe del mes correspondiente
                 if record.date.month == 1:
-                    enero = record.amount
+                    enero += record.amount
                 elif record.date.month == 2:
-                    febrero = record.amount
+                    febrero += record.amount
                 elif record.date.month == 3:
-                    marzo = record.amount
+                    marzo += record.amount
                 elif record.date.month == 4:
-                    abril = record.amount
+                    abril += record.amount
                 elif record.date.month == 5:
-                    mayo = record.amount
+                    mayo += record.amount
                 elif record.date.month == 6:
-                    junio = record.amount
+                    junio += record.amount
                 elif record.date.month == 7:
-                    julio = record.amount
+                    julio += record.amount
                 elif record.date.month == 8:
-                    agosto = record.amount
+                    agosto += record.amount
                 elif record.date.month == 9:
-                    septiembre = record.amount
+                    septiembre += record.amount
                 elif record.date.month == 10:
-                    octubre = record.amount
+                    octubre += record.amount
                 elif record.date.month == 11:
-                    noviembre = record.amount
+                    noviembre += record.amount
                 elif record.date.month == 12:
-                    diciembre = record.amount
+                    diciembre += record.amount
 
-                data.append({
+                # Suma los importes de cada mes para el mismo nombre de cuenta
+                data[record.account_id.name]['enero'] += enero
+                data[record.account_id.name]['febrero'] += febrero
+                data[record.account_id.name]['marzo'] += marzo
+                data[record.account_id.name]['abril'] += abril
+                data[record.account_id.name]['mayo'] += mayo
+                data[record.account_id.name]['junio'] += junio
+                data[record.account_id.name]['julio'] += julio
+                data[record.account_id.name]['agosto'] += agosto
+                data[record.account_id.name]['septiembre'] += septiembre
+                data[record.account_id.name]['octubre'] += octubre
+                data[record.account_id.name]['noviembre'] += noviembre
+                data[record.account_id.name]['diciembre'] += diciembre
+                data[record.account_id.name]['total_resultado'] += record.amount
+
+            final_data = []
+            for nombre_cuenta, meses in data.items():
+                total_resultado = meses['total_resultado']
+                final_data.append({
                     'tipo_cuenta': "record.account_id.account_type",
                     'nombre_cuenta': record.general_account_id.name,
                     'nombre_cto_costo': record.account_id.name,
-                    'enero': enero,
-                    'febrero': febrero,
-                    'marzo': marzo,
-                    'abril': abril,
-                    'mayo': mayo,
-                    'junio': junio,
-                    'julio': julio,
-                    'agosto': agosto,
-                    'septiembre': septiembre,
-                    'octubre': octubre,
-                    'noviembre': noviembre,
-                    'diciembre': diciembre,
-                    'total_resultado': record.amount,
+                    'enero': meses['enero'],
+                    'febrero': meses['febrero'],
+                    'marzo': meses['marzo'],
+                    'abril': meses['abril'],
+                    'mayo': meses['mayo'],
+                    'junio': meses['junio'],
+                    'julio': meses['julio'],
+                    'agosto': meses['agosto'],
+                    'septiembre': meses['septiembre'],
+                    'octubre': meses['octubre'],
+                    'noviembre': meses['noviembre'],
+                    'diciembre': meses['diciembre'],
+                    'total_resultado': total_resultado,
                 })
 
-        return data
+            return final_data
