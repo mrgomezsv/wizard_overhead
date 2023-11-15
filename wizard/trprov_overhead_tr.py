@@ -6,7 +6,6 @@ from openpyxl.styles import Font, NamedStyle
 from io import BytesIO
 import base64
 from collections import defaultdict
-from datetime import datetime
 
 
 class TrprovOverheadTr(models.TransientModel):
@@ -196,7 +195,7 @@ class TrprovOverheadTr(models.TransientModel):
             for account_name, months in data.items():
                 total_result = months['total_result']
                 final_data.append({
-                    'account_type': "record.account_id.account_type",
+                    'account_type': record.general_account_id.account_type,
                     'account_name': record.general_account_id.name,
                     'cost_cto_name': record.account_id.name,
                     'enero': months['enero'],
