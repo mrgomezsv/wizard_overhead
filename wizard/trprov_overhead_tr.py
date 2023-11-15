@@ -88,13 +88,40 @@ class TrprovOverheadTr(models.TransientModel):
             wk_sheet.cell(row=row_index, column=14, value=noviembre).style = currency_format
             wk_sheet.cell(row=row_index, column=15, value=diciembre).style = currency_format
             wk_sheet.cell(row=row_index, column=16, value=total_resultado).style = currency_format
-            wk_sheet.cell(row=row_index, column=16).font = Font(bold=True) # Aplica negrita a la columna "Total Resultado"
+            wk_sheet.cell(row=row_index, column=16).font = Font(bold=True)  # Aplica negrita a la columna "Total Resultado"
 
+        # Crear una segunda hoja llamada "HOJA 2"
+        wk_sheet_2 = wk_book.create_sheet(title="Overhead")
+
+        # Agregar encabezados a la segunda hoja
+        headers_2 = [
+            "Columna1", "Columna2", "Columna3",
+            # ... Otros encabezados ...
+        ]
+
+        row_index_2 = 1
+        col_index_2 = 1
+        for header in headers_2:
+            cell_2 = wk_sheet_2.cell(row=row_index_2, column=col_index_2)
+            cell_2.value = header
+            cell_2.font = Font(bold=True)
+            col_index_2 += 1
+
+        # Agregar datos a la segunda hoja
+        data_2 = [
+            #{"Columna1": valor1, "Columna2": valor2, "Columna3": valor3},
+            # ... Otros datos ...
+        ]
+
+        for row_index_2, row_data_2 in enumerate(data_2, 2):
+            for col_index_2, value_2 in enumerate(row_data_2.values(), 1):
+                wk_sheet_2.cell(row=row_index_2, column=col_index_2, value=value_2)
+
+        # Guardar los cambios
         output = BytesIO()
         wk_book.save(output)
 
         base64_content = base64.b64encode(output.getvalue())
-
         self.write({'file_content': base64_content})
 
         return {
