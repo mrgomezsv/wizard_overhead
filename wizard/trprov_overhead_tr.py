@@ -28,9 +28,9 @@ class TrprovOverheadTr(models.TransientModel):
         wk_sheet.title = "Estado de Resultados por Vendedor"
 
         # Agrega el título en la celda C2 a S2
-        wk_sheet['C2'] = "Estado de Resultado por Vendedor con Overhead"
-        wk_sheet.merge_cells('C2:S2')
-        title_cell = wk_sheet['C2']
+        wk_sheet['A2'] = "Estado de Resultado por Vendedor con Overhead"
+        wk_sheet.merge_cells('A2:P2')
+        title_cell = wk_sheet['A2']
         title_cell.alignment = openpyxl.styles.Alignment(horizontal="center", vertical="center")
         title_cell.font = openpyxl.styles.Font(bold=True, size=14)
 
@@ -131,14 +131,12 @@ class TrprovOverheadTr(models.TransientModel):
             'target': 'self',
         }
 
-    # Acción para ejecutar la acción de generación de Excel
-    def action_custom_button(self):
-        return self.action_generate_excel()
-
     # Función para obtener datos del estado de resultados desde Apuntes contables
     def get_data_status_results(self):
+        final_data = []
         for rec in self:
             data = defaultdict(lambda: defaultdict(float))
+            account_info = {}
 
             analytic_sellers = rec.env['account.analytic.line'].search([
                 ('account_id', 'in', rec.res_seller_ids.ids),
@@ -147,57 +145,29 @@ class TrprovOverheadTr(models.TransientModel):
             ])
 
             for record in analytic_sellers:
-                # Inicializar los valores del mes como 0.00
-                enero = febrero = marzo = abril = mayo = junio = julio = agosto = septiembre = octubre = noviembre = diciembre = 0.00
-
-                # Fijar el valor del importe del mes correspondiente
-                if record.date.month == 1:
-                    enero += record.amount
-                elif record.date.month == 2:
-                    febrero += record.amount
-                elif record.date.month == 3:
-                    marzo += record.amount
-                elif record.date.month == 4:
-                    abril += record.amount
-                elif record.date.month == 5:
-                    mayo += record.amount
-                elif record.date.month == 6:
-                    junio += record.amount
-                elif record.date.month == 7:
-                    julio += record.amount
-                elif record.date.month == 8:
-                    agosto += record.amount
-                elif record.date.month == 9:
-                    septiembre += record.amount
-                elif record.date.month == 10:
-                    octubre += record.amount
-                elif record.date.month == 11:
-                    noviembre += record.amount
-                elif record.date.month == 12:
-                    diciembre += record.amount
-
-                # Suma los importes de cada mes para el mismo nombre de cuenta
-                data[record.account_id.name]['enero'] += enero
-                data[record.account_id.name]['febrero'] += febrero
-                data[record.account_id.name]['marzo'] += marzo
-                data[record.account_id.name]['abril'] += abril
-                data[record.account_id.name]['mayo'] += mayo
-                data[record.account_id.name]['junio'] += junio
-                data[record.account_id.name]['julio'] += julio
-                data[record.account_id.name]['agosto'] += agosto
-                data[record.account_id.name]['septiembre'] += septiembre
-                data[record.account_id.name]['octubre'] += octubre
-                data[record.account_id.name]['noviembre'] += noviembre
-                data[record.account_id.name]['diciembre'] += diciembre
-                data[record.account_id.name]['total_result'] += record.amount
-
-            final_data = []
-            for account_name, months in data.items():
-                total_result = months['total_result']
-                final_data.append({
+                account_name = record.account_id.name
+                account_info[account_name] = {
                     'account_type': record.general_account_id.account_type,
-                    'account_name': record.general_account_id.name,
-                    'cost_cto_name': record.account_id.name,
+                    'general_account_name': record.general_account_id.name
+                }
+                data[account_name]['enero'] += record.amount if record.date.month == 1 else 0
+                data[account_name]['febrero'] += record.amount if record.date.month == 2 else 0
+                data[account_name]['marzo'] += record.amount if record.date.month == 3 else 0
+                data[account_name]['abril'] += record.amount if record.date.month == 4 else 0
+                data[account_name]['mayo'] += record.amount if record.date.month == 5 else 0
+                data[account_name]['junio'] += record.amount if record.date.month == 6 else 0
+                data[account_name]['julio'] += record.amount if record.date.month == 7 else 0
+                data[account_name]['agosto'] += record.amount if record.date.month == 8 else 0
+                data[account_name]['septiembre'] += record.amount if record.date.month == 9 else 0
+                data[account_name]['octubre'] += record.amount if record.date.month == 10 else 0
+                data[account_name]['noviembre'] += record.amount if record.date.month == 11 else 0
+                data[account_name]['diciembre'] += record.amount if record.date.month == 12 else 0
+                data[account_name]['total_result'] += record.amount
+
+            for account_name, months in data.items():
+                account_type = account_info[account_name]['account_type']
+                general_account_name = account_info[account_name]['general_account_name']
+                months_data = {
                     'enero': months['enero'],
                     'febrero': months['febrero'],
                     'marzo': months['marzo'],
@@ -210,7 +180,13 @@ class TrprovOverheadTr(models.TransientModel):
                     'octubre': months['octubre'],
                     'noviembre': months['noviembre'],
                     'diciembre': months['diciembre'],
-                    'total_result': total_result,
+                    'total_result': months['total_result'],
+                }
+                final_data.append({
+                    'account_type': account_type,
+                    'account_name': general_account_name,
+                    'cost_cto_name': account_name,
+                    **months_data
                 })
 
-            return final_data
+        return final_data
