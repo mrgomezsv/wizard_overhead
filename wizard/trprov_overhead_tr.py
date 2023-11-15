@@ -6,6 +6,7 @@ from openpyxl.styles import Font, NamedStyle
 from io import BytesIO
 import base64
 from collections import defaultdict
+from datetime import datetime
 
 
 class TrprovOverheadTr(models.TransientModel):
@@ -52,12 +53,12 @@ class TrprovOverheadTr(models.TransientModel):
         # Obtén el formato de moneda
         currency_format = NamedStyle(name='currency', number_format='"$"#,##0.00')
 
-        data = self.obtener_datos_estado_resultados()
+        data = self.get_data_status_results()
 
         for row_index, row_data in enumerate(data, 4):
-            nombre_cto_costo = row_data['nombre_cto_costo']
-            tipo_cuenta = row_data['tipo_cuenta']
-            nombre_cuenta = row_data['nombre_cuenta']
+            cost_cto_name = row_data['cost_cto_name']
+            account_type = row_data['account_type']
+            account_name = row_data['account_name']
             enero = row_data['enero']
             febrero = row_data['febrero']
             marzo = row_data['marzo']
@@ -70,11 +71,11 @@ class TrprovOverheadTr(models.TransientModel):
             octubre = row_data['octubre']
             noviembre = row_data['noviembre']
             diciembre = row_data['diciembre']
-            total_resultado = row_data['total_resultado']
+            total_result = row_data['total_result']
 
-            wk_sheet.cell(row=row_index, column=1, value=nombre_cto_costo)
-            wk_sheet.cell(row=row_index, column=2, value=tipo_cuenta)
-            wk_sheet.cell(row=row_index, column=3, value=nombre_cuenta)
+            wk_sheet.cell(row=row_index, column=1, value=cost_cto_name)
+            wk_sheet.cell(row=row_index, column=2, value=account_type)
+            wk_sheet.cell(row=row_index, column=3, value=account_name)
             wk_sheet.cell(row=row_index, column=4, value=enero).style = currency_format
             wk_sheet.cell(row=row_index, column=5, value=febrero).style = currency_format
             wk_sheet.cell(row=row_index, column=6, value=marzo).style = currency_format
@@ -87,7 +88,7 @@ class TrprovOverheadTr(models.TransientModel):
             wk_sheet.cell(row=row_index, column=13, value=octubre).style = currency_format
             wk_sheet.cell(row=row_index, column=14, value=noviembre).style = currency_format
             wk_sheet.cell(row=row_index, column=15, value=diciembre).style = currency_format
-            wk_sheet.cell(row=row_index, column=16, value=total_resultado).style = currency_format
+            wk_sheet.cell(row=row_index, column=16, value=total_result).style = currency_format
             wk_sheet.cell(row=row_index, column=16).font = Font(bold=True)  # Aplica negrita a la columna "Total Resultado"
 
         # Crear una segunda hoja llamada "HOJA 2"
@@ -136,11 +137,15 @@ class TrprovOverheadTr(models.TransientModel):
         return self.action_generate_excel()
 
     # Función para obtener datos del estado de resultados desde Apuntes contables
-    def obtener_datos_estado_resultados(self):
+    def get_data_status_results(self):
         for rec in self:
             data = defaultdict(lambda: defaultdict(float))
 
-            analytic_sellers = rec.env['account.analytic.line'].search([('account_id', 'in', rec.res_seller_ids.ids), ])
+            analytic_sellers = rec.env['account.analytic.line'].search([
+                ('account_id', 'in', rec.res_seller_ids.ids),
+                ('date', '>=', rec.report_from_date),
+                ('date', '<=', rec.report_to_date),
+            ])
 
             for record in analytic_sellers:
                 # Inicializar los valores del mes como 0.00
@@ -185,28 +190,28 @@ class TrprovOverheadTr(models.TransientModel):
                 data[record.account_id.name]['octubre'] += octubre
                 data[record.account_id.name]['noviembre'] += noviembre
                 data[record.account_id.name]['diciembre'] += diciembre
-                data[record.account_id.name]['total_resultado'] += record.amount
+                data[record.account_id.name]['total_result'] += record.amount
 
             final_data = []
-            for nombre_cuenta, meses in data.items():
-                total_resultado = meses['total_resultado']
+            for account_name, months in data.items():
+                total_result = months['total_result']
                 final_data.append({
-                    'tipo_cuenta': "record.account_id.account_type",
-                    'nombre_cuenta': record.general_account_id.name,
-                    'nombre_cto_costo': record.account_id.name,
-                    'enero': meses['enero'],
-                    'febrero': meses['febrero'],
-                    'marzo': meses['marzo'],
-                    'abril': meses['abril'],
-                    'mayo': meses['mayo'],
-                    'junio': meses['junio'],
-                    'julio': meses['julio'],
-                    'agosto': meses['agosto'],
-                    'septiembre': meses['septiembre'],
-                    'octubre': meses['octubre'],
-                    'noviembre': meses['noviembre'],
-                    'diciembre': meses['diciembre'],
-                    'total_resultado': total_resultado,
+                    'account_type': "record.account_id.account_type",
+                    'account_name': record.general_account_id.name,
+                    'cost_cto_name': record.account_id.name,
+                    'enero': months['enero'],
+                    'febrero': months['febrero'],
+                    'marzo': months['marzo'],
+                    'abril': months['abril'],
+                    'mayo': months['mayo'],
+                    'junio': months['junio'],
+                    'julio': months['julio'],
+                    'agosto': months['agosto'],
+                    'septiembre': months['septiembre'],
+                    'octubre': months['octubre'],
+                    'noviembre': months['noviembre'],
+                    'diciembre': months['diciembre'],
+                    'total_result': total_result,
                 })
 
             return final_data
