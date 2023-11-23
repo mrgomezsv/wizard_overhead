@@ -1,2 +1,2 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-treming_profil_overhead_wizard_2.access_trprov_overhead_tr,access_trprov_overhead_tr,treming_profil_overhead_wizard_2.model_trprov_overhead_tr,base.group_user,1,1,1,1
+treming_profil_overhead_wizard.access_trprov_overhead_tr,access_trprov_overhead_tr,treming_profil_overhead_wizard.model_trprov_overhead_tr,base.group_user,1,1,1,1

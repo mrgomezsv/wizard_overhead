@@ -19,7 +19,6 @@
 
     'data': [
         'security/ir.model.access.csv',
-        'wizard/trprov_overhead_tr.xml',
-        'views/account_analytic_account.xml',
+        'wizard/trprov_overhead_tr.xml'
     ],
 }

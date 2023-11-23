@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 
 from odoo import api, fields, models
-import openpyxl
-from openpyxl.styles import Font, NamedStyle
-from io import BytesIO
-import base64
 from collections import defaultdict
+import base64
+from datetime import datetime
+from io import BytesIO
+import openpyxl
+from openpyxl.styles import Font, Alignment, PatternFill, NamedStyle
+from openpyxl.utils import get_column_letter
 
 
 class TrprovOverheadTr(models.TransientModel):
@@ -16,177 +18,203 @@ class TrprovOverheadTr(models.TransientModel):
     report_from_date = fields.Date(string="Reporte desde", required=True, default=fields.Date.context_today)
     report_to_date = fields.Date(string="Reporte hasta", required=True, default=fields.Date.context_today)
     categ_ids = fields.Many2many('product.category', string="Categoria de los productos")
-    res_seller_ids = fields.Many2many('account.analytic.account', string="Cuentas Analíticas")
+    res_seller_ids = fields.Many2many('account.analytic.account', string="Cuentas Analíticas", required=True)
     company_id = fields.Many2one(comodel_name="res.company", string="Compañia", required=True,
                                  default=lambda self: self.env.company.id)
     file_content = fields.Binary(string="Archivo Contenido")
 
-    # Acción para generar el archivo Excel y mostrar el enlace de descarga
+    # Define la acción para generar el archivo Excel
     def action_generate_excel(self):
+        # Crea un nuevo libro de trabajo de Excel
         wk_book = openpyxl.Workbook()
-        wk_sheet = wk_book.active
-        wk_sheet.title = "Estado de Resultados por Vendedor"
-
-        # Agrega el título en la celda C2 a S2
-        wk_sheet['A2'] = "Estado de Resultado por Vendedor con Overhead"
-        wk_sheet.merge_cells('A2:P2')
-        title_cell = wk_sheet['A2']
-        title_cell.alignment = openpyxl.styles.Alignment(horizontal="center", vertical="center")
-        title_cell.font = openpyxl.styles.Font(bold=True, size=14)
-
-        headers = [
-            "Nombre Cto. Costo", "Tipo", "Nombre Cuenta", "Enero", "Febrero", "Marzo",
-            "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
-            "Total Resultado"
-        ]
-
-        # Comienza a llenar los encabezados a partir de la tercera fila y tercera columna
-        row_index = 3
-        col_index = 1
-        for header in headers:
-            cell = wk_sheet.cell(row=row_index, column=col_index)
-            cell.value = header
-            cell.font = Font(bold=True)
-            col_index += 1
-
-        # Obtén el formato de moneda
+        # Define los estilos para el archivo
         currency_format = NamedStyle(name='currency', number_format='"$"#,##0.00')
+        bold_font = Font(bold=True)
+        header_font = Font(bold=True, color='FFFFFF')
+        header_fill = PatternFill(start_color='000000', end_color='000000', fill_type='solid')
 
-        data = self.get_data_status_results()
+        # Obtiene los datos para el informe
+        data = sorted(self.get_data_status_results(), key=lambda x: x['account_type'])
 
-        for row_index, row_data in enumerate(data, 4):
-            cost_cto_name = row_data['cost_cto_name']
-            account_type = row_data['account_type']
-            account_name = row_data['account_name']
-            enero = row_data['enero']
-            febrero = row_data['febrero']
-            marzo = row_data['marzo']
-            abril = row_data['abril']
-            mayo = row_data['mayo']
-            junio = row_data['junio']
-            julio = row_data['julio']
-            agosto = row_data['agosto']
-            septiembre = row_data['septiembre']
-            octubre = row_data['octubre']
-            noviembre = row_data['noviembre']
-            diciembre = row_data['diciembre']
-            total_result = row_data['total_result']
+        # Elimina la hoja activa por defecto
+        wk_book.remove(wk_book.active)
 
-            wk_sheet.cell(row=row_index, column=1, value=cost_cto_name)
-            wk_sheet.cell(row=row_index, column=2, value=account_type)
-            wk_sheet.cell(row=row_index, column=3, value=account_name)
-            wk_sheet.cell(row=row_index, column=4, value=enero).style = currency_format
-            wk_sheet.cell(row=row_index, column=5, value=febrero).style = currency_format
-            wk_sheet.cell(row=row_index, column=6, value=marzo).style = currency_format
-            wk_sheet.cell(row=row_index, column=7, value=abril).style = currency_format
-            wk_sheet.cell(row=row_index, column=8, value=mayo).style = currency_format
-            wk_sheet.cell(row=row_index, column=9, value=junio).style = currency_format
-            wk_sheet.cell(row=row_index, column=10, value=julio).style = currency_format
-            wk_sheet.cell(row=row_index, column=11, value=agosto).style = currency_format
-            wk_sheet.cell(row=row_index, column=12, value=septiembre).style = currency_format
-            wk_sheet.cell(row=row_index, column=13, value=octubre).style = currency_format
-            wk_sheet.cell(row=row_index, column=14, value=noviembre).style = currency_format
-            wk_sheet.cell(row=row_index, column=15, value=diciembre).style = currency_format
-            wk_sheet.cell(row=row_index, column=16, value=total_result).style = currency_format
-            wk_sheet.cell(row=row_index, column=16).font = Font(bold=True)  # Aplica negrita a la columna "Total Resultado"
+        # Define los datos del informe
+        sheets = {}
+        last_account_type = None
+        separator_fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
 
-        # Crear una segunda hoja llamada "HOJA 2"
-        wk_sheet_2 = wk_book.create_sheet(title="Overhead")
+        # Itera sobre los datos y los añade al informe
+        for item in data:
+            analytic_account_name = item['analytic_account_name']
 
-        # Agregar encabezados a la segunda hoja
-        headers_2 = [
-            "Columna1", "Columna2", "Columna3",
-            # ... Otros encabezados ...
-        ]
+            # Verifica si la hoja para la cuenta analítica ya existe, si no, la crea
+            if analytic_account_name not in sheets:
+                sheet = wk_book.create_sheet(title=analytic_account_name)
+                sheets[analytic_account_name] = sheet
+                last_account_type = None
 
-        row_index_2 = 1
-        col_index_2 = 1
-        for header in headers_2:
-            cell_2 = wk_sheet_2.cell(row=row_index_2, column=col_index_2)
-            cell_2.value = header
-            cell_2.font = Font(bold=True)
-            col_index_2 += 1
+                # Agrega el título del informe
+                report_title = f"Estado de resultados desde {self.report_from_date} hasta {self.report_to_date}"
+                sheet.append(["", "", report_title])
+                for cell in sheet["B2:F2"]:
+                    cell[0].font = bold_font
 
-        # Agregar datos a la segunda hoja
-        data_2 = [
-            #{"Columna1": valor1, "Columna2": valor2, "Columna3": valor3},
-            # ... Otros datos ...
-        ]
+                # Agrega el nombre de la compañía al informe
+                company_name = self.env.company.name
+                sheet.append(["", "Compañía:", company_name])
+                for cell in sheet["B3:F3"]:
+                    cell[0].font = bold_font
 
-        for row_index_2, row_data_2 in enumerate(data_2, 2):
-            for col_index_2, value_2 in enumerate(row_data_2.values(), 1):
-                wk_sheet_2.cell(row=row_index_2, column=col_index_2, value=value_2)
+                # Agrega el nombre del Centro de Costo al informe
+                sheet.append(["", "Nombre Cto Costo:", analytic_account_name])
+                for cell in sheet["B4:F4"]:
+                    cell[0].font = bold_font
 
-        # Guardar los cambios
+                # Deja una fila vacía
+                sheet.append([])
+
+                # Agrega los encabezados de las columnas al informe
+                headers = [
+                    "Concepto", "Nombre Cto. Costo", "Nombre Cta Agrupador", "Enero", "Febrero",
+                    "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre",
+                    "Diciembre",
+                    "Total Resultado"
+                ]
+                sheet.append(headers)
+                for col_index, header in enumerate(headers, start=1):
+                    cell = sheet.cell(row=6, column=col_index)
+                    cell.value = header
+                    cell.font = header_font
+                    cell.fill = header_fill
+            else:
+                # Si la hoja ya existe, obtén la referencia
+                sheet = sheets[analytic_account_name]
+
+            # Agrega un separador si cambia el tipo de cuenta
+            if last_account_type and item['account_type'] != last_account_type:
+                row_index = sheet.max_row + 1
+                for col in range(1, sheet.max_column + 1):
+                    cell = sheet.cell(row=row_index, column=col)
+                    cell.fill = separator_fill
+
+            last_account_type = item['account_type']
+
+            # Incrementa el índice de la fila
+            row_index = sheet.max_row + 1
+
+            # Llena las celdas con la información del item actual
+            sheet.cell(row=row_index, column=1, value=item['account_type'])
+            sheet.cell(row=row_index, column=2, value=item['analytic_account_name'])
+            sheet.cell(row=row_index, column=3, value=item['financial_account_name'])
+
+            # Llena las celdas de los meses con los valores correspondientes
+            for month_index in range(1, 13):
+                month_value = item.get(f'month_{month_index}', 0)
+                sheet.cell(row=row_index, column=month_index + 3, value=month_value).style = currency_format
+
+            # Llena la celda del total con el valor correspondiente
+            sheet.cell(row=row_index, column=16, value=item['total_result']).style = currency_format
+
+        # Guarda el informe en un objeto BytesIO
         output = BytesIO()
         wk_book.save(output)
+        output.seek(0)
+        base64_content = base64.b64encode(output.read())
+        output.close()
 
-        base64_content = base64.b64encode(output.getvalue())
+        # Escribe el contenido del archivo en el campo 'file_content' del modelo
         self.write({'file_content': base64_content})
 
+        # Crear formato para nombre de salida de archivo
+        formatted_from_date = self.report_from_date.strftime('%Y-%m-%d')
+        formatted_to_date = self.report_to_date.strftime('%Y-%m-%d')
+        filename = f"Estado_resultados_{formatted_from_date}_{formatted_to_date}.xlsx"
+
+        # Devuelve una acción para descargar el archivo
         return {
             'type': 'ir.actions.act_url',
-            'url': "web/content/?model={}&id={}&field=file_content&filename=Reporte_Overhead.xlsx&download=true".format(
-                self._name, self.id),
+            'url': f"web/content/?model={self._name}&id={self.id}&field=file_content&filename={filename}&download=true",
             'target': 'self',
         }
 
-    # Función para obtener datos del estado de resultados desde Apuntes contables
+    # Define la función para obtener los datos del estado de resultados
     def get_data_status_results(self):
-        final_data = []
-        for rec in self:
-            data = defaultdict(lambda: defaultdict(float))
-            account_info = {}
+        # Define el mapeo de los tipos de cuenta
+        ACCOUNT_TYPE_MAPPING = {
+            "asset_receivable": "Por cobrar",
+            "asset_cash": "Banco y efectivo",
+            "asset_current": "Activos Circulantes",
+            "asset_non_current": "Activos no-circulantes",
+            "asset_prepayments": "Prepagos",
+            "asset_fixed": "Activos Fijos",
+            "liability_payable": "Por pagar",
+            "liability_credit_card": "Tarjeta de Crédito",
+            "liability_current": "Pasivos Circulantes",
+            "liability_non_current": "Pasivos no-circulantes",
+            "equity": "Capital",
+            "equity_unaffected": "Ganancias del año actual",
+            "income": "Ingreso",
+            "income_other": "Otro Ingreso",
+            "expense": "Gastos",
+            "expense_depreciation": "Depreciación",
+            "expense_direct_cost": "Costo de ingresos",
+            "off_balance": "Hoja fuera de balance",
+        }
 
-            analytic_sellers = rec.env['account.analytic.line'].search([
+        # (Código para obtener los datos del estado de resultados)
+        final_data = []  # Lista que almacenará los datos finales a devolver
+
+        # Bucle principal que recorre cada registro en el objeto actual
+        for rec in self:
+            # Estructuras de datos para almacenar información analítica y de cuentas
+            data = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
+            account_info = defaultdict(dict)
+
+            # Buscar líneas analíticas que cumplan con ciertos criterios
+            analytic_lines = rec.env['account.analytic.line'].search([
                 ('account_id', 'in', rec.res_seller_ids.ids),
                 ('date', '>=', rec.report_from_date),
                 ('date', '<=', rec.report_to_date),
             ])
 
-            for record in analytic_sellers:
-                account_name = record.account_id.name
-                account_info[account_name] = {
-                    'account_type': record.general_account_id.account_type,
-                    'general_account_name': record.general_account_id.name
-                }
-                data[account_name]['enero'] += record.amount if record.date.month == 1 else 0
-                data[account_name]['febrero'] += record.amount if record.date.month == 2 else 0
-                data[account_name]['marzo'] += record.amount if record.date.month == 3 else 0
-                data[account_name]['abril'] += record.amount if record.date.month == 4 else 0
-                data[account_name]['mayo'] += record.amount if record.date.month == 5 else 0
-                data[account_name]['junio'] += record.amount if record.date.month == 6 else 0
-                data[account_name]['julio'] += record.amount if record.date.month == 7 else 0
-                data[account_name]['agosto'] += record.amount if record.date.month == 8 else 0
-                data[account_name]['septiembre'] += record.amount if record.date.month == 9 else 0
-                data[account_name]['octubre'] += record.amount if record.date.month == 10 else 0
-                data[account_name]['noviembre'] += record.amount if record.date.month == 11 else 0
-                data[account_name]['diciembre'] += record.amount if record.date.month == 12 else 0
-                data[account_name]['total_result'] += record.amount
+            # Iterar sobre las líneas analíticas encontradas
+            for line in analytic_lines:
+                analytic_account_name = line.account_id.name
+                financial_account_name = line.general_account_id.name
+                financial_account_type = line.trprovwi_general_account_type_tr
+                analytic_account_id = line.account_id.id
+                financial_account_id = line.general_account_id.id
 
-            for account_name, months in data.items():
-                account_type = account_info[account_name]['account_type']
-                general_account_name = account_info[account_name]['general_account_name']
-                months_data = {
-                    'enero': months['enero'],
-                    'febrero': months['febrero'],
-                    'marzo': months['marzo'],
-                    'abril': months['abril'],
-                    'mayo': months['mayo'],
-                    'junio': months['junio'],
-                    'julio': months['julio'],
-                    'agosto': months['agosto'],
-                    'septiembre': months['septiembre'],
-                    'octubre': months['octubre'],
-                    'noviembre': months['noviembre'],
-                    'diciembre': months['diciembre'],
-                    'total_result': months['total_result'],
+                # Almacenar información de cuentas
+                account_info[analytic_account_id]['name'] = analytic_account_name
+                account_info[analytic_account_id][financial_account_id] = {
+                    'name': financial_account_name,
+                    'type': financial_account_type
                 }
-                final_data.append({
-                    'account_type': account_type,
-                    'account_name': general_account_name,
-                    'cost_cto_name': account_name,
-                    **months_data
-                })
 
+                # Calcular y almacenar datos mensuales
+                for month in range(1, 13):
+                    if line.date.month == month:
+                        amount = line.amount or 0
+                        data[analytic_account_id][financial_account_id][f'month_{month}'] += amount
+                        data[analytic_account_id][financial_account_id]['total_result'] += amount
+
+            # Construir la estructura final de datos a partir de la información recopilada
+            for analytic_id, financial_accounts in data.items():
+                for financial_id, months in financial_accounts.items():
+                    account_type_key = account_info[analytic_id][financial_id]['type']
+                    # Obtener el valor del tipo de cuenta o dejar el original si no hay mapeo
+                    account_type_value = ACCOUNT_TYPE_MAPPING.get(account_type_key, account_type_key)
+                    # Agregar los datos finales a la lista
+                    final_data.append({
+                        'analytic_account_id': analytic_id,
+                        'analytic_account_name': account_info[analytic_id]['name'],
+                        'financial_account_id': financial_id,
+                        'financial_account_name': account_info[analytic_id][financial_id]['name'],
+                        'account_type': account_type_value,
+                        **months
+                    })
+
+        # Devolver la lista final de datos
         return final_data
