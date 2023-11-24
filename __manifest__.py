@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 {
-    'name': "treming_profil_wizard_overhead_2",
+    'name': "treming_profil_wizard_overhead",
 
     'summary': """
         Estados de resultados por vendedor, con su Overhead incorporado""",
